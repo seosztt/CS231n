@@ -55,7 +55,10 @@ class TwoLayerNet(object):
         ############################################################################
         # *****START OF YOUR CODE (DO NOT DELETE/MODIFY THIS LINE)*****
 
-        pass
+        self.params['W1'] = np.random.normal(0,weight_scale,(input_dim, hidden_dim))
+        self.params['b1'] = np.zeros(hidden_dim)
+        self.params['W2'] = np.random.normal(0,weight_scale,(hidden_dim,num_classes))
+        self.params['b2'] = np.zeros(num_classes)
 
         # *****END OF YOUR CODE (DO NOT DELETE/MODIFY THIS LINE)*****
         ############################################################################
@@ -87,14 +90,24 @@ class TwoLayerNet(object):
         # class scores for X and storing them in the scores variable.              #
         ############################################################################
         # *****START OF YOUR CODE (DO NOT DELETE/MODIFY THIS LINE)*****
+        
+        W1=self.params['W1']
+        W2=self.params['W2']
+        b1=self.params['b1']
+        b2=self.params['b2']
 
-        pass
+        num_train=X.shape[0]
+        
+        X=X.reshape(num_train, -1)
+
+        h=np.dot(X,W1)+b1
+        
+        scores=np.dot(h, W2)+b2
 
         # *****END OF YOUR CODE (DO NOT DELETE/MODIFY THIS LINE)*****
         ############################################################################
         #                             END OF YOUR CODE                             #
-        ############################################################################
-
+        ############################################################################        
         # If y is None then we are in test mode so just return scores
         if y is None:
             return scores
@@ -112,8 +125,20 @@ class TwoLayerNet(object):
         ############################################################################
         # *****START OF YOUR CODE (DO NOT DELETE/MODIFY THIS LINE)*****
 
-        pass
+        loss, ds = softmax_loss(scores,y)
+    
+        loss = loss + 0.5*self.reg*np.sum(W1*W1) + 0.5*self.reg*np.sum(W2*W2)
+        
+        grads['W2'] = np.dot(h.T,ds) + self.reg*W2
+        
+        dh=np.dot(ds, W2.T)
+        
+        grads['W1'] = np.dot(X.T,dh) + self.reg*W1
 
+        grads['b2'] = np.sum(ds, axis=0)
+
+        grads['b1'] = np.sum(dh, axis=0)
+        
         # *****END OF YOUR CODE (DO NOT DELETE/MODIFY THIS LINE)*****
         ############################################################################
         #                             END OF YOUR CODE                             #

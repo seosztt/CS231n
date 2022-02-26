@@ -1,4 +1,5 @@
 from builtins import range
+from click import echo_via_pager
 import numpy as np
 from random import shuffle
 from past.builtins import xrange
@@ -34,14 +35,33 @@ def softmax_loss_naive(W, X, y, reg):
     #############################################################################
     # *****START OF YOUR CODE (DO NOT DELETE/MODIFY THIS LINE)*****
 
-    pass
-
+    num_train=X.shape[0]
+    num_classes=W.shape[1]
+    for i in range(num_train):
+          score=X[i].dot(W)
+          
+          score = np.exp(score)
+          score /= np.sum(score)
+          
+          prob=score[y[i]]
+          
+          loss += np.sum(-np.log(prob))
+          
+          dS = score
+          dS[y[i]] -= 1
+          dW += np.dot(X[i].reshape(-1,1), dS.reshape(1,-1))
+          
+    dW /= num_train
+    dW += 2*reg*W
+          
+    loss /= num_train
+    loss += reg * np.sum(W * W)
+    
     # *****END OF YOUR CODE (DO NOT DELETE/MODIFY THIS LINE)*****
 
     return loss, dW
-
-
-def softmax_loss_vectorized(W, X, y, reg):
+  
+def softmax_loss_vectorized(W, X, y, reg, CG=False):
     """
     Softmax loss function, vectorized version.
 
@@ -58,9 +78,50 @@ def softmax_loss_vectorized(W, X, y, reg):
     # regularization!                                                           #
     #############################################################################
     # *****START OF YOUR CODE (DO NOT DELETE/MODIFY THIS LINE)*****
+    
+    if CG : # apply computational graph
+          
+          X=0.01*X # preprocess to prevent overflow
 
-    pass
+          num_train=X.shape[0]
+          num_classes=W.shape[1]
+          score=X.dot(W)
+          
+          exp_correct=np.exp(score[range(num_train), y])
+          exp_score_sum=np.sum(np.exp(score), axis=1)
+          
+          prob=exp_correct/exp_score_sum
+          
+          loss = np.sum(-np.log(prob))/num_train + reg * np.sum(W*W)
+          
+          dP=-1/(prob)
+          dS = np.zeros_like(score)
+          dS[:] = (((-exp_correct)/(exp_score_sum**2))*dP).reshape(-1,1)
+          dS[range(num_train), y] += (1/exp_score_sum)*dP
+          dW += np.dot(X.T, dS)
+          dW /= num_train
+          dW += 2*reg*W
+    else:
+          num_train=X.shape[0]
 
+          scores=X.dot(W)
+          
+          scores=scores-scores.max(axis=1, keepdims=True) # to prevent overflow 
+          
+          scores = np.exp(scores)
+          scores /= scores.sum(axis=1, keepdims=True)
+          
+          prob=scores[range(num_train),y]
+          
+          loss = np.sum(-np.log(prob))/num_train + reg * np.sum(W*W)
+          
+          dS = scores
+          dS[range(num_train), y] -= 1
+          
+          dW += np.dot(X.T, dS)
+          dW /= num_train
+          dW += 2*reg*W
+              
     # *****END OF YOUR CODE (DO NOT DELETE/MODIFY THIS LINE)*****
 
     return loss, dW

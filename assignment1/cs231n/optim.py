@@ -39,13 +39,13 @@ def sgd(w, dw, config=None):
     """
     if config is None:
         config = {}
-    config.setdefault("learning_rate", 1e-2)
+    config.setdefault("learning_rate", 1e-3)
     ###########################################################################
     # TODO: Implement the vanilla stochastic gradient descent update formula. #
     ###########################################################################
     # *****START OF YOUR CODE (DO NOT DELETE/MODIFY THIS LINE)*****
 
-    pass
+    w -= (config["learning_rate"])*dw
 
     # *****END OF YOUR CODE (DO NOT DELETE/MODIFY THIS LINE)*****
     ###########################################################################
