@@ -64,7 +64,7 @@ class ThreeLayerConvNet(object):
         # *****START OF YOUR CODE (DO NOT DELETE/MODIFY THIS LINE)*****
 
         C, H, W = input_dim
-        D = C*H*W
+        D = num_filters*H*W//4
 
         self.params['W1'] = np.random.normal(0, weight_scale,(num_filters, C, filter_size, filter_size))
         self.params['b1'] = np.zeros(num_filters)
@@ -111,12 +111,10 @@ class ThreeLayerConvNet(object):
         # *****START OF YOUR CODE (DO NOT DELETE/MODIFY THIS LINE)*****
 
         # conv - relu - 2x2 maxpool - affine - relu - affine - softmax
-        
+
         conv, cache_conv = conv_relu_pool_forward(X, W1, b1, conv_param, pool_param)
         hidden, cache_hidden = affine_relu_forward(conv, W2, b2)
         scores, cache_scores=affine_forward(hidden, W3, b3)
-
-
 
         # *****END OF YOUR CODE (DO NOT DELETE/MODIFY THIS LINE)*****
         ############################################################################
@@ -146,6 +144,7 @@ class ThreeLayerConvNet(object):
 
         dhidden, dW3, db3 = affine_backward(dscores, cache_scores)
         dconv, dW2, db2 = affine_relu_backward(dhidden, cache_hidden)
+        dconv = dconv.reshape(*conv.shape)
         dx, dW1, db1 = conv_relu_pool_backward(dconv, cache_conv)
         
         grads['W3'] = dW3 + self.reg*W3
