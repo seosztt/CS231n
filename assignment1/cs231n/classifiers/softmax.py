@@ -61,7 +61,7 @@ def softmax_loss_naive(W, X, y, reg):
 
     return loss, dW
   
-def softmax_loss_vectorized(W, X, y, reg, CG=False):
+def softmax_loss_vectorized(W, X, y, reg, FT=False):
     """
     Softmax loss function, vectorized version.
 
@@ -79,12 +79,10 @@ def softmax_loss_vectorized(W, X, y, reg, CG=False):
     #############################################################################
     # *****START OF YOUR CODE (DO NOT DELETE/MODIFY THIS LINE)*****
     
-    if CG : # apply computational graph
-          
+    if FT :          
           X=0.01*X # preprocess to prevent overflow
 
           num_train=X.shape[0]
-          num_classes=W.shape[1]
           score=X.dot(W)
           
           exp_correct=np.exp(score[range(num_train), y])

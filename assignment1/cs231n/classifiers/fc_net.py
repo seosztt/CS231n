@@ -25,7 +25,8 @@ class TwoLayerNet(object):
     def __init__(
         self,
         input_dim=3 * 32 * 32,
-        hidden_dim=100,
+        hidden1_dim=100,
+        hidden2_dim=100,
         num_classes=10,
         weight_scale=1e-3,
         reg=0.0,
@@ -55,10 +56,10 @@ class TwoLayerNet(object):
         ############################################################################
         # *****START OF YOUR CODE (DO NOT DELETE/MODIFY THIS LINE)*****
 
-        self.params['W1'] = np.random.normal(0,weight_scale,(input_dim, hidden_dim))
-        self.params['b1'] = np.zeros(hidden_dim)
-        self.params['W2'] = np.random.normal(0,weight_scale,(hidden_dim,num_classes))
-        self.params['b2'] = np.zeros(num_classes)
+        self.params['W1'] = np.random.normal(0,weight_scale,(input_dim, hidden1_dim))
+        self.params['b1'] = np.zeros(hidden1_dim)
+        self.params['W2'] = np.random.normal(0,weight_scale,(hidden1_dim,hidden2_dim))
+        self.params['b2'] = np.zeros(hidden2_dim)
 
         # *****END OF YOUR CODE (DO NOT DELETE/MODIFY THIS LINE)*****
         ############################################################################
@@ -94,15 +95,11 @@ class TwoLayerNet(object):
         W1=self.params['W1']
         W2=self.params['W2']
         b1=self.params['b1']
-        b2=self.params['b2']
+        b2=self.params['b2'] 
 
-        num_train=X.shape[0]
-        
-        X=X.reshape(num_train, -1)
-
-        h=np.dot(X,W1)+b1
-        
-        scores=np.dot(h, W2)+b2
+        h, cache1 = affine_forward(X, W1, b1)
+        r, cacher = relu_forward(h)
+        scores, cache2 = affine_forward(r, W2, b2)
 
         # *****END OF YOUR CODE (DO NOT DELETE/MODIFY THIS LINE)*****
         ############################################################################
@@ -128,16 +125,18 @@ class TwoLayerNet(object):
         loss, ds = softmax_loss(scores,y)
     
         loss = loss + 0.5*self.reg*np.sum(W1*W1) + 0.5*self.reg*np.sum(W2*W2)
-        
-        grads['W2'] = np.dot(h.T,ds) + self.reg*W2
-        
-        dh=np.dot(ds, W2.T)
-        
-        grads['W1'] = np.dot(X.T,dh) + self.reg*W1
 
-        grads['b2'] = np.sum(ds, axis=0)
+        dh, dW2, db2 = affine_backward(ds, cache2)
+        dr=relu_backward(dh, cacher)
+        dx, dW1, db1 = affine_backward(dr, cache1)
 
-        grads['b1'] = np.sum(dh, axis=0)
+        grads['W2'] = dW2 + self.reg*W2
+        
+        grads['W1'] = dW1 + self.reg*W1
+
+        grads['b2'] = db2
+
+        grads['b1'] = db1
         
         # *****END OF YOUR CODE (DO NOT DELETE/MODIFY THIS LINE)*****
         ############################################################################
@@ -145,3 +144,5 @@ class TwoLayerNet(object):
         ############################################################################
 
         return loss, grads
+
+        
