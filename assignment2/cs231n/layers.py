@@ -264,7 +264,7 @@ def batchnorm_forward(x, gamma, beta, bn_param):
         #######################################################################
         # *****START OF YOUR CODE (DO NOT DELETE/MODIFY THIS LINE)*****
 
-        out=gamma*(x-running_mean)/(np.sqrt(running_var)+eps)+beta
+        out=gamma*(x-running_mean)/(np.sqrt(running_var+eps))+beta
 
         # *****END OF YOUR CODE (DO NOT DELETE/MODIFY THIS LINE)*****
         #######################################################################
@@ -505,7 +505,7 @@ def dropout_forward(x, dropout_param):
         #######################################################################
         # *****START OF YOUR CODE (DO NOT DELETE/MODIFY THIS LINE)*****
 
-        mask = np.random.randn(*x.shape) < p
+        mask = np.random.rand(*x.shape) < p
         out = mask*x/p
 
         # *****END OF YOUR CODE (DO NOT DELETE/MODIFY THIS LINE)*****
@@ -548,7 +548,7 @@ def dropout_backward(dout, cache):
         #######################################################################
         # *****START OF YOUR CODE (DO NOT DELETE/MODIFY THIS LINE)*****
 
-        dx = dout*mask/dropout_param['p']
+        dx = dout*mask/dropout_param["p"]
 
         # *****END OF YOUR CODE (DO NOT DELETE/MODIFY THIS LINE)*****
         #######################################################################
@@ -763,7 +763,7 @@ def max_pool_backward_naive(dout, cache):
                             pooling_area = x[n, c, h*stride : h*stride + pool_height,
                                                    wid*stride : wid*stride + pool_width]
                             a, b = np.unravel_index(np.argmax(pooling_area), pooling_area.shape)
-                            dx[n, c, h : h + a, wid : wid + b] += dout[n, c, h, wid]
+                            dx[n, c, h*stride + a, wid*stride + b] += dout[n, c, h, wid]
 
     # *****END OF YOUR CODE (DO NOT DELETE/MODIFY THIS LINE)*****
     ###########################################################################
@@ -803,9 +803,12 @@ def spatial_batchnorm_forward(x, gamma, beta, bn_param):
     # Your implementation should be very short; ours is less than five lines. #
     ###########################################################################
     # *****START OF YOUR CODE (DO NOT DELETE/MODIFY THIS LINE)*****
-
-    pass
-
+    
+    N, C, H, W = x.shape
+    x = np.moveaxis(x, 1, -1).reshape((N*H*W, C))    
+    out, cache = batchnorm_forward(x, gamma, beta, bn_param)   
+    out = np.moveaxis(out.reshape((N, H, W, C)), -1, 1)
+    
     # *****END OF YOUR CODE (DO NOT DELETE/MODIFY THIS LINE)*****
     ###########################################################################
     #                             END OF YOUR CODE                            #
@@ -836,9 +839,12 @@ def spatial_batchnorm_backward(dout, cache):
     # Your implementation should be very short; ours is less than five lines. #
     ###########################################################################
     # *****START OF YOUR CODE (DO NOT DELETE/MODIFY THIS LINE)*****
-
-    pass
-
+    
+    N, C, H, W = dout.shape
+    dout = np.moveaxis(dout, 1, -1).reshape((N*H*W, C))    
+    dx, dgamma, dbeta = batchnorm_backward_alt(dout, cache)  
+    dx = np.moveaxis(dx.reshape((N, H, W, C)), -1, 1)
+    
     # *****END OF YOUR CODE (DO NOT DELETE/MODIFY THIS LINE)*****
     ###########################################################################
     #                             END OF YOUR CODE                            #
@@ -877,8 +883,41 @@ def spatial_groupnorm_forward(x, gamma, beta, G, gn_param):
     # and layer normalization!                                                #
     ###########################################################################
     # *****START OF YOUR CODE (DO NOT DELETE/MODIFY THIS LINE)*****
+    
+    N, C, H, W = x.shape
+    group_size = C//G
+    x = x.reshape(N*G, group_size*H*W)
+    
+    group_mean = np.mean(x, axis=1, keepdims=True)
 
-    pass
+    z=x-group_mean
+
+    group_var = np.mean(z**2, axis=1, keepdims=True) + eps
+    group_std = np.sqrt(group_var)
+    n = z/group_std
+    
+    n = n.reshape((N,C,H,W))
+        
+    out = gamma*n+beta
+
+    cache = (x, z, n, group_std, group_var, group_mean, gamma)
+
+    # N, C, H, W = x.shape
+    # group_size = C//G
+    # out_list=[]
+    # cache=[]
+    
+    # for i in range(G):
+    #       x_split = x[:, i*group_size : (i+1)*group_size, :, :]
+    #       x_split = x_split.reshape((N,-1))
+    #       gamma_split = x[:, i*group_size : (i+1)*group_size, :, :]
+    #       gamma_split = gamma_split.reshape((N,-1))
+    #       beta_split = x[:, i*group_size : (i+1)*group_size, :, :]
+    #       beta_split = beta_split.reshape((N,-1))
+    #       out_split, cache_split = layernorm_forward(x_split, gamma_split, beta_split, gn_param)
+    #       out_list.append(out_split.reshape((N, group_size, H, W)))
+    #       cache.append(cache_split)
+    # out = np.concatenate(out_list, axis=1)
 
     # *****END OF YOUR CODE (DO NOT DELETE/MODIFY THIS LINE)*****
     ###########################################################################
@@ -907,7 +946,42 @@ def spatial_groupnorm_backward(dout, cache):
     ###########################################################################
     # *****START OF YOUR CODE (DO NOT DELETE/MODIFY THIS LINE)*****
 
-    pass
+    x, z, n, group_std, group_var, group_mean, gamma = cache
+    N, C, H, W = dout.shape
+    
+    dbeta = dout.sum(axis=(0,2,3)).reshape((1,C,1,1))
+    dgamma = np.sum(dout*n, axis=(0,2,3)).reshape((1,C,1,1))
+
+    dn = dout*gamma
+    dn = dn.reshape(*z.shape)
+
+    dstd = -np.mean(dn*z/group_var, axis=1, keepdims=True)
+    dstd = z*dstd/group_std
+    
+    dz = dn/group_std + dstd
+    dx = dz-np.mean(dz, axis=1, keepdims=True)
+    
+    dx = dx.reshape((N, C, H, W))
+
+    # N, C, H, W = dout.shape
+    # group_size = C//len(cache)
+    
+    # dx_list = []
+    # dgamma_list = []
+    # dbeta_list = []
+    
+    # for cache_ in range(cache):
+    #       dout_split = dout[:, len(cache_)*group_size : (len(cache_)+1)*group_size, :, :]
+    #       dout_split = dout_split.reshape((N,-1))
+    #       dx_split, dgamma_split, dbeta_split = layernorm_backward(dout_split, cache_)
+          
+    #       dx_list.append(dx_split.reshape((N, group_size, H, W)))
+    #       dgamma_list.append(dgamma_split.reshape((1, group_size, 1, 1)))
+    #       dbeta_list.append(dbeta_split.reshape((1, group_size, 1, 1)))
+          
+    # dx = np.concatenate(dx_list, axis=1)
+    # dgamma = np.concatenate(dgamma_list, axis=1)
+    # dbeta = np.concatenate(dbeta_list, axis=1)
 
     # *****END OF YOUR CODE (DO NOT DELETE/MODIFY THIS LINE)*****
     ###########################################################################
